@@ -260,6 +260,9 @@ export function Dashboard({ config, onExit }: { config: AppConfig | null; onExit
                   <button className="contact-section-title">Contact details <ChevronDown size={16} /></button>
                   <dl>
                     <div><dt>Phone</dt><dd>{selected.contact.phone}</dd></div>
+                    {selected.customerProfile?.name && <div><dt>Name</dt><dd>{selected.customerProfile.name}</dd></div>}
+                    {selected.customerProfile?.location && <div><dt>Location</dt><dd>{selected.customerProfile.location}</dd></div>}
+                    {selected.customerProfile?.intent && <div><dt>Intent</dt><dd>{selected.customerProfile.intent === 'deal' ? 'Quote / Deal' : 'Query'}</dd></div>}
                     <div><dt>Language</dt><dd>{selected.contact.language}</dd></div>
                     <div><dt>Channel</dt><dd>{selected.channel === 'demo' ? 'Website demo' : 'WhatsApp'}</dd></div>
                   </dl>

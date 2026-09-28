@@ -28,6 +28,12 @@ export interface Conversation {
   contact: Contact;
   channel: 'demo' | 'whatsapp';
   status: ConversationStatus;
+  botState?: 'GREETING' | 'COLLECTING_INTENT' | 'COLLECTING_INFO' | 'READY_FOR_AGENT';
+  customerProfile?: {
+    name?: string;
+    location?: string;
+    intent?: 'query' | 'deal';
+  };
   assignedAgent?: string;
   unreadCount: number;
   fallbackCount: number;

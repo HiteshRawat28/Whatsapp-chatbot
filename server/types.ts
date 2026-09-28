@@ -37,12 +37,20 @@ export interface ConversationContext {
   property?: string;
 }
 
+export interface CustomerProfile {
+  name?: string;
+  location?: string;
+  intent?: 'query' | 'deal';
+}
+
 export interface Conversation {
   id: string;
   contactId: string;
   contact: Contact;
   channel: Channel;
   status: ConversationStatus;
+  botState?: 'GREETING' | 'COLLECTING_INTENT' | 'COLLECTING_INFO' | 'READY_FOR_AGENT';
+  customerProfile?: CustomerProfile;
   assignedAgent?: string;
   unreadCount: number;
   fallbackCount: number;

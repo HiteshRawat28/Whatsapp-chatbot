@@ -52,14 +52,27 @@ export class SupportBot {
     if (conversation.status === 'human_active') return null;
 
     // Define strict guardrails and persona
-    const systemPrompt = `You are Ava, a professional, concise, and helpful virtual assistant for ${this.businessName}, a clean-energy company. 
-You help customers with rooftop solar, energy audits, EV charging, and system maintenance.
+    let systemPrompt = `You are Ava, a virtual assistant for ${this.businessName}, a clean-energy company. `;
+    
+    if (conversation.botState === 'GREETING' || !conversation.botState) {
+      systemPrompt += `Your primary goal right now is to ask the user what they want to do. 
+Do they have a general query, or do they want to make a deal/get a quote?
+Keep it to one short sentence. Do NOT answer any complex questions yet. 
+If they indicate they have a query, use the 'set_intent' tool with intent='query'. 
+If they indicate they want a deal/quote, use the 'set_intent' tool with intent='deal'.`;
+    } else if (conversation.botState === 'COLLECTING_INFO') {
+      systemPrompt += `The user wants to make a deal/get a quote. 
+You MUST politely ask for their name and location (city). 
+Do NOT provide pricing or answer other questions until you have both their name and location. 
+Once they provide their name and location, use the 'save_customer_profile' tool to save this data.`;
+    } else {
+      systemPrompt += `You help customers with rooftop solar, energy audits, EV charging, and system maintenance.
 Rules:
-1. ALWAYS keep responses extremely short, under 2 sentences. You are chatting on WhatsApp.
-2. If the user asks about anything unrelated to energy services (e.g. politics, coding, general trivia), politely refuse and bring the topic back to energy.
-3. If the user asks to speak to a human, seems frustrated, or has complex technical issues, you MUST call the 'request_human_agent' tool. Do NOT just say you are connecting them in text.
-4. If a user asks for contact info, our phone number is +91 ${this.escalationPhone.slice(-10, -5)} ${this.escalationPhone.slice(-5)}.
-5. DEAL NEGOTIATION: If the customer asks for a deal, pricing, or an estimate, you can calculate and offer a simulated "preliminary deal" to keep them engaged. Assume a base price of roughly ₹60,000 per kW for rooftop solar and ₹40,000 for an EV charger. You can offer up to a 10% discount if they book a consultation today. Always clarify that this is a preliminary estimate and a specialist will provide the final quote.`;
+1. ALWAYS keep responses extremely short, under 2 sentences.
+2. If the user asks to speak to a human, seems frustrated, or has complex technical issues, you MUST call the 'request_human_agent' tool.
+3. If a user asks for contact info, our phone number is +91 ${this.escalationPhone.slice(-10, -5)} ${this.escalationPhone.slice(-5)}.
+4. DEAL NEGOTIATION: If the customer asks for pricing, you can calculate and offer a simulated "preliminary deal" assuming a base price of roughly ₹60,000 per kW for rooftop solar.`;
+    }
 
     // Map conversation history to LLM format
     const messages: any[] = [{ role: 'system', content: systemPrompt }];
@@ -91,6 +104,35 @@ Rules:
               name: 'request_human_agent',
               description: 'Call this tool when the user explicitly asks to speak to a human agent, gets angry, or asks a complex technical question.'
             }
+          },
+          {
+            type: 'function',
+            function: {
+              name: 'set_intent',
+              description: 'Call this tool when the user indicates if they have a general query or want to make a deal/get a quote.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  intent: { type: 'string', enum: ['query', 'deal'] }
+                },
+                required: ['intent']
+              }
+            }
+          },
+          {
+            type: 'function',
+            function: {
+              name: 'save_customer_profile',
+              description: 'Call this tool when the user provides their name and location for a deal.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  location: { type: 'string' }
+                },
+                required: ['name', 'location']
+              }
+            }
           }
         ],
         tool_choice: 'auto'
@@ -103,6 +145,30 @@ Rules:
         for (const tool of message.tool_calls) {
           if (tool.function.name === 'request_human_agent') {
             return this.handoff('I’ve flagged this conversation for our team. A specialist will take over shortly.');
+          }
+          if (tool.function.name === 'set_intent') {
+            const args = JSON.parse(tool.function.arguments || '{}');
+            if (args.intent === 'deal') {
+              return {
+                text: 'Great! To help you with a deal, could I please get your name and location (city)?',
+                conversationPatch: { botState: 'COLLECTING_INFO', customerProfile: { ...conversation.customerProfile, intent: 'deal' } }
+              };
+            } else {
+              return {
+                text: 'Sure, I can help with your query! What would you like to know about our services?',
+                conversationPatch: { botState: 'READY_FOR_AGENT', customerProfile: { ...conversation.customerProfile, intent: 'query' } }
+              };
+            }
+          }
+          if (tool.function.name === 'save_customer_profile') {
+            const args = JSON.parse(tool.function.arguments || '{}');
+            return {
+              text: `Thanks, ${args.name}! I have saved your location as ${args.location}. How can I assist you with the deal today?`,
+              conversationPatch: { 
+                botState: 'READY_FOR_AGENT', 
+                customerProfile: { ...conversation.customerProfile, name: args.name, location: args.location } 
+              }
+            };
           }
         }
       }

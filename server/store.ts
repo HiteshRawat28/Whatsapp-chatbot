@@ -169,6 +169,8 @@ export class ConversationStore {
       },
       channel: input.channel || 'demo',
       status: 'bot_active',
+      botState: 'GREETING',
+      customerProfile: {},
       unreadCount: 0,
       fallbackCount: 0,
       context: {},
