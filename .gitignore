@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-server/
+.env
+server/data/runtime.json
+server/data/runtime.*.tmp
+*.log
+.DS_Store
