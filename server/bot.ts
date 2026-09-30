@@ -43,35 +43,75 @@ export class SupportBot {
 
   welcome(): BotResult {
     return {
-      text: `Hi! I’m Ava, the ${this.businessName} virtual assistant. I can help you explore clean-energy services, understand the consultation process, or connect you with a specialist.`,
-      quickReplies: mainMenu
+      text: `Namaskar! Welcome to ${this.businessName}. Please select your preferred language / कृपया अपनी पसंदीदा भाषा चुनें:`,
+      quickReplies: [
+        { id: 'en', label: 'English' },
+        { id: 'hi', label: 'हिंदी (Hindi)' }
+      ],
+      conversationPatch: { botState: 'LANGUAGE_SELECTION' }
     };
   }
 
   async respond(conversation: Conversation, rawText: string): Promise<BotResult | null> {
     if (conversation.status === 'human_active') return null;
 
+    if (conversation.botState === 'LANGUAGE_SELECTION') {
+      const text = rawText.toLowerCase();
+      const isHindi = text.includes('hi') || text.includes('हिंदी') || text.includes('hindi');
+      const lang = isHindi ? 'hi' : 'en';
+      
+      const greetingText = isHindi 
+        ? `नमस्ते! मैं अवा हूँ, ${this.businessName} की वर्चुअल असिस्टेंट। क्या आप हमारे स्मार्ट सोलर + AI समाधानों के साथ अपने बिजली के बिल को कम करना चाहते हैं? मैं आज आपकी कैसे मदद कर सकती हूँ?`
+        : `Hi! I’m Ava, your virtual assistant from ${this.businessName}. Want to smartly reduce your electricity bill with our Smart Solar + AI solutions? How can I help you today?`;
+      
+      const greetingMenu = isHindi ? [
+        { id: 'services', label: 'सेवाएं देखें' },
+        { id: 'consultation', label: 'परामर्श बुक करें' },
+        { id: 'pricing', label: 'कीमत और बचत' },
+        { id: 'human', label: 'विशेषज्ञ से बात करें' }
+      ] : mainMenu;
+
+      return {
+        text: greetingText,
+        quickReplies: greetingMenu,
+        conversationPatch: { 
+          botState: 'GREETING', 
+          customerProfile: { ...conversation.customerProfile, language: lang }
+        }
+      };
+    }
+
+    const userLang = conversation.customerProfile?.language || 'en';
+    const langInstruction = userLang === 'hi' ? 'You MUST respond ONLY in Hindi (हिंदी).' : 'You MUST respond ONLY in English.';
+
     // Define strict guardrails and persona
-    let systemPrompt = `You are Ava, a virtual assistant for ${this.businessName}, a clean-energy company. `;
+    let systemPrompt = `You are Ava, a virtual assistant for ${this.businessName}, an AI-powered smart solar solutions provider in Madhya Pradesh.
+Your tone is welcoming and customer-friendly. ${langInstruction}
+Key benefits to mention naturally:
+- Smart Solar + AI for higher performance and savings.
+- Free ₹20,000 Smart AI Monitoring Device with installations.
+- 100% Finance Available.
+- Real-time monitoring via our mobile app to track daily energy.
+- Expert technical team for safe, professional setup.
+`;
     
     if (conversation.botState === 'GREETING' || !conversation.botState) {
       systemPrompt += `Your primary goal right now is to ask the user what they want to do. 
-Do they have a general query, or do they want to make a deal/get a quote?
-Keep it to one short sentence. Do NOT answer any complex questions yet. 
+Do they have a general query, or do they want to book a free solar consultation/get a quote?
+Keep it short. Do NOT answer complex questions yet. 
 If they indicate they have a query, use the 'set_intent' tool with intent='query'. 
 If they indicate they want a deal/quote, use the 'set_intent' tool with intent='deal'.`;
     } else if (conversation.botState === 'COLLECTING_INFO') {
-      systemPrompt += `The user wants to make a deal/get a quote. 
+      systemPrompt += `The user wants to get a quote or make a deal. 
 You MUST politely ask for their name and location (city). 
-Do NOT provide pricing or answer other questions until you have both their name and location. 
-Once they provide their name and location, use the 'save_customer_profile' tool to save this data.`;
+Do NOT provide pricing or make deals yourself. We NEVER make deals via chat.
+Once they provide their name and location, use the 'save_customer_profile' tool to save this data so an expert can follow up.`;
     } else {
-      systemPrompt += `You help customers with rooftop solar, energy audits, EV charging, and system maintenance.
-Rules:
-1. ALWAYS keep responses extremely short, under 2 sentences.
+      systemPrompt += `Rules:
+1. ALWAYS keep responses short and customer-friendly.
 2. If the user asks to speak to a human, seems frustrated, or has complex technical issues, you MUST call the 'request_human_agent' tool.
-3. If a user asks for contact info, our phone number is +91 ${this.escalationPhone.slice(-10, -5)} ${this.escalationPhone.slice(-5)}.
-4. DEAL NEGOTIATION: If the customer asks for pricing, you can calculate and offer a simulated "preliminary deal" assuming a base price of roughly ₹60,000 per kW for rooftop solar.`;
+3. If a user asks for contact info, our phone numbers are 8889991290 or 8889992094, and email is info@energinai.com.
+4. DEAL NEGOTIATION / PRICING: NEVER make a deal or provide specific solar panel rates (DO NOT use any hardcoded base prices). If asked for pricing, inform them that pricing depends on capacity, highlight our offers (e.g., Free ₹20,000 monitor, Free consultation, 100% finance), and inform them an expert will provide an exact quote.`;
     }
 
     // Map conversation history to LLM format
@@ -209,7 +249,7 @@ Rules:
       return this.handleConsultation(context, rawText);
     }
 
-    if (includesAny(text, ['hello', 'hi', 'hey', 'start', 'menu', 'good morning', 'good evening'])) {
+    if (includesAny(text, ['hello', 'hi', 'hey', 'start', 'menu', 'good morning', 'good evening', 'नमस्ते', 'नमस्कार', 'हेलो'])) {
       const welcome = this.welcome();
       return {
         ...welcome,
@@ -271,7 +311,7 @@ Rules:
 
     if (includesAny(text, ['price', 'pricing', 'cost', 'quote', 'budget'])) {
       return {
-        text: 'Pricing depends on capacity, property conditions and equipment selection. We avoid generic estimates that may be misleading. A free initial consultation lets our team prepare an accurate, no-obligation recommendation.',
+        text: 'Pricing depends on capacity and property conditions. However, every installation comes with a FREE ₹20,000 Smart Energy Monitor and 100% Finance is available! Book a free solar consultation for an exact quote.',
         quickReplies: [
           { id: 'consultation', label: 'Get a tailored quote' },
           { id: 'human', label: 'Talk to an expert' }
@@ -292,7 +332,7 @@ Rules:
 
     if (includesAny(text, ['contact', 'phone', 'number', 'email'])) {
       return {
-        text: `You can reach our support team at +91 ${this.escalationPhone.slice(-10, -5)} ${this.escalationPhone.slice(-5)}. You can also choose “Talk to an expert” and we’ll flag this chat for follow-up.`,
+        text: `You can reach our team at 8889991290 or 8889992094, or email us at info@energinai.com. You can also choose “Talk to an expert” to connect now.`,
         quickReplies: [
           { id: 'human', label: 'Talk to an expert' },
           { id: 'menu', label: 'Main menu' }

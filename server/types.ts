@@ -41,6 +41,7 @@ export interface CustomerProfile {
   name?: string;
   location?: string;
   intent?: 'query' | 'deal';
+  language?: 'en' | 'hi';
 }
 
 export interface Conversation {
@@ -49,7 +50,7 @@ export interface Conversation {
   contact: Contact;
   channel: Channel;
   status: ConversationStatus;
-  botState?: 'GREETING' | 'COLLECTING_INTENT' | 'COLLECTING_INFO' | 'READY_FOR_AGENT';
+  botState?: 'LANGUAGE_SELECTION' | 'GREETING' | 'COLLECTING_INTENT' | 'COLLECTING_INFO' | 'READY_FOR_AGENT';
   customerProfile?: CustomerProfile;
   assignedAgent?: string;
   unreadCount: number;

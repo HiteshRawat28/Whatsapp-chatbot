@@ -18,3 +18,15 @@ During initial setup, several critical issues were resolved regarding the Meta W
 4. **Temporary Token Expiration:**
    - **Problem:** Server threw an `Authentication Error` when attempting to call `MetaCloudProvider.sendText`.
    - **Solution:** Temporary Meta access tokens expire every 24 hours. A fresh token must be generated in the Dashboard and placed into `META_WHATSAPP_ACCESS_TOKEN` in `.env`.
+
+## 2026-09-30 - Chatbot Persona & Localization Updates
+
+1. **Company Context & Persona Alignment:**
+   - **Action:** Created `context/company_context.md` from the provided ad campaign details. 
+   - **Action:** Updated `server/bot.ts` system prompt to reflect the EnergInAI marketing strategy. The bot now explicitly highlights key features (Smart Solar + AI, Free ₹20,000 Monitor, 100% Finance) instead of providing hard-coded pricing (like the previous ₹60,000 base rate).
+   - **Action:** Added a strict guardrail: The bot is prohibited from making deals and must hand off to a human agent using the `save_customer_profile` tool whenever pricing or a quote is requested.
+
+2. **Bilingual Support (English & Hindi):**
+   - **Action:** Introduced a `LANGUAGE_SELECTION` state in `server/types.ts` (`botState`) and added a `language` property to `CustomerProfile`.
+   - **Action:** Modified `welcome()` in `bot.ts` to first prompt the user to choose between English and Hindi.
+   - **Action:** Updated the `respond()` method to interpret the language selection, dynamically translate the initial greeting and quick replies, and inject a strict instruction into the LLM system prompt (`You MUST respond ONLY in [Language]`) to ensure the conversation consistently continues in the user's preferred language.
